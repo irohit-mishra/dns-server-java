@@ -49,12 +49,12 @@ class DNSMessage {
         buffer.putShort(arcount);
 
         // Write question 
-        buffer.put(encodeDomainName("codecrafter.io"));
+        buffer.put(encodeDomainName("codecrafters.io"));
         buffer.putShort((short) 1);
         buffer.putShort((short) 1);
 
         // Write answer section
-        buffer.put(encodeDomainName("codecrafter.io"));
+        buffer.put(encodeDomainName("codecrafters.io"));
         buffer.putShort((short) 1);
         buffer.putShort((short) 1);
         buffer.putInt(60);
