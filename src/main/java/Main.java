@@ -22,12 +22,12 @@ public class Main {
                 // Set the flags for response
                 short flags = (short) 0b1000000000000000;  // Set QR (bit 15) to 1
 
-                // Encode the domain name "example.com"
+                // Encode the domain name codecrafters.io
                 byte[] name = new byte[] {
-                  0x07,  // Length of "example"
-                  'e', 'x', 'a', 'm', 'p', 'l', 'e',
-                  0x03,  // Length of "com"
-                  'c', 'o', 'm',
+                  0x0C,  // Length of "codecrafters"
+                  'c', 'o', 'd', 'e', 'c', 'r', 'a', 'f', 't', 'e', 'r', 's',
+                  0x02,  // Length of "io"
+                  'i', 'o',
                   0x00   // Null byte to terminate the domain name
                 };
 
