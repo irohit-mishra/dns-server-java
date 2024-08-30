@@ -7,10 +7,8 @@ import java.util.BitSet;
 
 public class Main {
     public static void main(String[] args) {
-        // You can use print statements as follows for debugging, they'll be visible when running tests.
         System.out.println("Logs from your program will appear here!");
 
-        // Uncomment this block to pass the first stage
         try (DatagramSocket serverSocket = new DatagramSocket(2053)) {
             while (true) {
                 final byte[] buf = new byte[512];
@@ -23,26 +21,29 @@ public class Main {
                 final var bitset = new BitSet(8);
                 bitset.flip(7);
 
-                //encoding domain name
-                byte[] name = new byte[]{
-                  0x0C,  // Length of "codecrafters"
-                    'c', 'o', 'd', 'e', 'c', 'r', 'a', 'f', 't', 'e', 'r', 's',
-                    0x02,  // Length of "io"
-                    'i', 'o',
-                    0x00
+                // Encode the domain name example.com
+                byte[] name = new byte[] {
+                    0x07,  // Length of "example"
+                    'e', 'x', 'a', 'm', 'p', 'l', 'e',
+                    0x03,  // Length of "com"
+                    'c', 'o', 'm',
+                    0x00   // Null byte to terminate the domain name
                 };
-                short qtype = 1;
-                short qclass = 1;
+
+                short qtype = 1;  // Type A
+                short qclass = 1; // Class IN
 
                 final byte[] bufResponse = ByteBuffer.allocate(512)
                         .order(ByteOrder.BIG_ENDIAN)
-                        .putShort(ID)
-                        .put(bitset.toByteArray())
-                        .put((byte) 0)
-                        .putShort((short) 0)
-                        .putShort((short) 0)
-                        .putShort((short) 0)
-                        .putShort((short) 0)
+                        .putShort(ID)                         // Transaction ID
+                        .put(bitset.toByteArray())             // Flags
+                        .putShort((short) 1)                  // QDCOUNT (number of questions)
+                        .putShort((short) 0)                  // ANCOUNT
+                        .putShort((short) 0)                  // NSCOUNT
+                        .putShort((short) 0)                  // ARCOUNT
+                        .put(name)                            // Question Name
+                        .putShort(qtype)                      // Question Type
+                        .putShort(qclass)                     // Question Class
                         .array();
 
                 final DatagramPacket packetResponse = new DatagramPacket(bufResponse, bufResponse.length, packet.getSocketAddress());
