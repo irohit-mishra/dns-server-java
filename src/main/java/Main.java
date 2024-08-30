@@ -1,9 +1,8 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.BitSet;
 
 public class Main {
     public static void main(String[] args) {
@@ -16,42 +15,62 @@ public class Main {
                 serverSocket.receive(packet);
                 System.out.println("Received data");
 
-                // Prepare response buffer
-                short ID = (short) 1234;
-
-                // Set the flags for response
-                short flags = (short) 0b1000000000000000;  // Set QR (bit 15) to 1
-
-                // Encode the domain name codecrafters.io
-                byte[] name = new byte[] {
-                  0x0C,  // Length of "codecrafters"
-                  'c', 'o', 'd', 'e', 'c', 'r', 'a', 'f', 't', 'e', 'r', 's',
-                  0x02,  // Length of "io"
-                  'i', 'o',
-                  0x00   // Null byte to terminate the domain name
-                };
-
-                short qtype = 1;  // Type A
-                short qclass = 1; // Class IN
-
-                final byte[] bufResponse = ByteBuffer.allocate(512)
-                        .order(ByteOrder.BIG_ENDIAN)
-                        .putShort(ID)                          // Transaction ID
-                        .putShort(flags)                       // Flags (QR flag set to 1)
-                        .putShort((short) 1)                   // QDCOUNT (number of questions)
-                        .putShort((short) 0)                   // ANCOUNT
-                        .putShort((short) 0)                   // NSCOUNT
-                        .putShort((short) 0)                   // ARCOUNT
-                        .put(name)                             // Question Name
-                        .putShort(qtype)                       // Question Type
-                        .putShort(qclass)                      // Question Class
-                        .array();
-
-                final DatagramPacket packetResponse = new DatagramPacket(bufResponse, bufResponse.length, packet.getSocketAddress());
-                serverSocket.send(packetResponse);
+                byte[] responseBuffer = new DNSMessage().array();
+                DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, packet.getSocketAddress());
+                serverSocket.send(responsePacket);
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         }
+    }
+}
+
+class DNSMessage {
+    public short id = 1234;
+
+    public short flags = (short) 0b10000000_00000000;
+
+    public short qdcount = 1;
+    public short ancount = 1;
+    public short nscount = 0;
+    public short arcount = 0;
+
+    public DNSMessage() {}
+
+    public byte[] array() {
+        ByteBuffer buffer = ByteBuffer.allocate(512);
+
+        // Write header
+        buffer.putShort(id);
+        buffer.putShort(flags);
+        buffer.putShort(qdcount);
+        buffer.putShort(ancount);
+        buffer.putShort(nscount);
+        buffer.putShort(arcount);
+
+        // Write question 
+        buffer.put(encodeDomainName("codecrafter.io"));
+        buffer.putShort((short) 1);
+        buffer.putShort((short) 1);
+
+        // Write answer section
+        buffer.put(encodeDomainName("codecrafter.io"));
+        buffer.putShort((short) 1);
+        buffer.putShort((short) 1);
+        buffer.putInt(60);
+        buffer.putShort((short) 4);
+        buffer.put(new byte[]{8, 8, 8, 8});
+
+        return buffer.array();
+    }
+
+    private byte[] encodeDomainName(String domain) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        for (String label : domain.split("\\.")) {
+            out.write(label.length());
+            out.writeBytes(label.getBytes());
+        }
+        out.write(0); // Terminating null byte
+        return out.toByteArray();
     }
 }
