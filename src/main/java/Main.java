@@ -20,14 +20,7 @@ public class Main {
                 short ID = (short) 1234;
 
                 // Set the flags for response
-                final var bitset = new BitSet(16);  // Should be 16 bits
-                bitset.set(15);  // QR flag (response)
-
-                // Convert bitset to 2 bytes
-                byte[] flags = bitset.toByteArray();
-                if (flags.length < 2) {
-                    flags = new byte[]{0, flags[0]};
-                }
+                short flags = (short) 0b1000000000000000;  // Set QR (bit 15) to 1
 
                 // Encode the domain name codecrafters.io
                 byte[] name = new byte[] {
@@ -44,7 +37,7 @@ public class Main {
                 final byte[] bufResponse = ByteBuffer.allocate(512)
                         .order(ByteOrder.BIG_ENDIAN)
                         .putShort(ID)                          // Transaction ID
-                        .put(flags)                            // Flags (2 bytes)
+                        .putShort(flags)                       // Flags (QR flag set to 1)
                         .putShort((short) 1)                   // QDCOUNT (number of questions)
                         .putShort((short) 0)                   // ANCOUNT
                         .putShort((short) 0)                   // NSCOUNT
