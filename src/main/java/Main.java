@@ -25,15 +25,15 @@ public class Main {
 
                 //encoding domain name
                 byte[] name = new byte[]{
-                  0x07,
-                  'e', 'x', 'a', 'm', 'p', 'l', 'e',
-                  0x03,
-                  'c', 'o', 'm',
-                  0x00
+                  0x0C,  // Length of "codecrafters"
+                    'c', 'o', 'd', 'e', 'c', 'r', 'a', 'f', 't', 'e', 'r', 's',
+                    0x02,  // Length of "io"
+                    'i', 'o',
+                    0x00
                 };
                 short qtype = 1;
                 short qclass = 1;
-                
+
                 final byte[] bufResponse = ByteBuffer.allocate(512)
                         .order(ByteOrder.BIG_ENDIAN)
                         .putShort(ID)
