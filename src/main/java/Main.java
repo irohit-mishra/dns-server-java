@@ -34,26 +34,38 @@ class DNSMessage {
     private short ancount;
     private short nscount;
     private short arcount;
+    private byte[] questionName;
+    private short questionType;
+    private short questionClass;
 
-    public DNSMessage(short id, short flags, short qdcount, short ancount, short nscount, short arcount) {
+    public DNSMessage(short id, short flags, short qdcount, short ancount, short nscount, short arcount,
+                      byte[] questionName, short questionType, short questionClass) {
         this.id = id;
         this.flags = flags;
         this.qdcount = qdcount;
         this.ancount = ancount;
         this.nscount = nscount;
         this.arcount = arcount;
+        this.questionName = questionName;
+        this.questionType = questionType;
+        this.questionClass = questionClass;
     }
 
-    public static DNSMessage fromArray(byte[] data) {
+    public static DNSMessage fromArray(byte[] data) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(data);
 
-        // Extract the fields from the request packet
+        // Extract the header fields from the request packet
         short id = buffer.getShort();
         short flags = buffer.getShort();
         short qdcount = buffer.getShort();
         short ancount = buffer.getShort();
         short nscount = buffer.getShort();
         short arcount = buffer.getShort();
+
+        // Parse the question section
+        byte[] questionName = parseDomainName(buffer);
+        short questionType = buffer.getShort();
+        short questionClass = buffer.getShort();
 
         // Prepare the response flags
         short opcode = (short) (flags & 0x7800); // Extract Opcode (bits 11-14)
@@ -63,7 +75,8 @@ class DNSMessage {
         // Set the QR bit to 1 (indicating response), retain Opcode, RD, and set other fields to expected values
         short responseFlags = (short) (0x8000 | (opcode & 0x7800) | (rd & 0x0100) | rcode);
 
-        return new DNSMessage(id, responseFlags, qdcount, (short) 1, nscount, arcount);
+        // Set ancount to 1 to indicate one answer record
+        return new DNSMessage(id, responseFlags, qdcount, (short) 1, nscount, arcount, questionName, questionType, questionClass);
     }
 
     public byte[] createResponseArray() {
@@ -77,15 +90,15 @@ class DNSMessage {
         buffer.putShort(nscount);   // NSCOUNT (Authority Record Count)
         buffer.putShort(arcount);   // ARCOUNT (Additional Record Count)
 
-        // Write a dummy question section for testing purposes
-        buffer.put(encodeDomainName("codecrafters.io"));
-        buffer.putShort((short) 1); // QTYPE (A)
-        buffer.putShort((short) 1); // QCLASS (IN)
+        // Write the question section (mimic the original request)
+        buffer.put(questionName);
+        buffer.putShort(questionType);
+        buffer.putShort(questionClass);
 
-        // Write a dummy answer section for testing purposes
-        buffer.put(encodeDomainName("codecrafters.io"));
-        buffer.putShort((short) 1); // TYPE (A)
-        buffer.putShort((short) 1); // CLASS (IN)
+        // Write the answer section
+        buffer.put(questionName);   // Name
+        buffer.putShort(questionType); // Type (A)
+        buffer.putShort(questionClass); // Class (IN)
         buffer.putInt(60);          // TTL (Time to Live)
         buffer.putShort((short) 4); // RDLENGTH
         buffer.put(new byte[]{8, 8, 8, 8}); // RDATA (IP Address)
@@ -93,11 +106,17 @@ class DNSMessage {
         return buffer.array();
     }
 
-    private byte[] encodeDomainName(String domain) {
+    private static byte[] parseDomainName(ByteBuffer buffer) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        for (String label : domain.split("\\.")) {
-            out.write(label.length());
-            out.writeBytes(label.getBytes());
+        while (true) {
+            byte len = buffer.get();
+            if (len == 0) {
+                break;
+            }
+            byte[] label = new byte[len];
+            buffer.get(label);
+            out.write(len);
+            out.write(label);
         }
         out.write(0); // Terminating null byte
         return out.toByteArray();
