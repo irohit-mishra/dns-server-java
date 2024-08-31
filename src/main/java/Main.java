@@ -15,7 +15,9 @@ public class Main {
                 serverSocket.receive(packet);
                 System.out.println("Received data");
 
-                byte[] responseBuffer = new DNSMessage().array();
+                DNSMessage requestMessage = DNSMessage.fromArray(buf);
+                byte[] responseBuffer = requestMessage.createResponseArray();
+                
                 DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, packet.getSocketAddress());
                 serverSocket.send(responsePacket);
             }
@@ -26,18 +28,40 @@ public class Main {
 }
 
 class DNSMessage {
-    public short id = 1234;
+    private short id;
+    private short flags;
+    private short qdcount;
+    private short ancount;
+    private short nscount;
+    private short arcount;
 
-    public short flags = (short) 0b10000000_00000000;
+    public DNSMessage(short id, short flags, short qdcount, short ancount, short nscount, short arcount) {
+        this.id = id;
+        this.flags = flags;
+        this.qdcount = qdcount;
+        this.ancount = ancount;
+        this.nscount = nscount;
+        this.arcount = arcount;
+    }
 
-    public short qdcount = 1;
-    public short ancount = 1;
-    public short nscount = 0;
-    public short arcount = 0;
+    public static DNSMessage fromArray(byte[] data) {
+        ByteBuffer buffer = ByteBuffer.wrap(data);
 
-    public DNSMessage() {}
+        short id = buffer.getShort();
+        short flags = buffer.getShort();
+        short qdcount = buffer.getShort();
+        short ancount = buffer.getShort();
+        short nscount = buffer.getShort();
+        short arcount = buffer.getShort();
 
-    public byte[] array() {
+        // We mimic only the necessary fields in the response
+        // QR = 1 (response), RA = 0, other flags = mimicked
+        short responseFlags = (short) (flags & 0x0110 | 0x8000);
+
+        return new DNSMessage(id, responseFlags, qdcount, ancount, nscount, arcount);
+    }
+
+    public byte[] createResponseArray() {
         ByteBuffer buffer = ByteBuffer.allocate(512);
 
         // Write header
@@ -48,12 +72,12 @@ class DNSMessage {
         buffer.putShort(nscount);
         buffer.putShort(arcount);
 
-        // Write question 
+        // Write question (dummy data for testing purposes)
         buffer.put(encodeDomainName("codecrafters.io"));
         buffer.putShort((short) 1);
         buffer.putShort((short) 1);
 
-        // Write answer section
+        // Write answer section (dummy data for testing purposes)
         buffer.put(encodeDomainName("codecrafters.io"));
         buffer.putShort((short) 1);
         buffer.putShort((short) 1);
