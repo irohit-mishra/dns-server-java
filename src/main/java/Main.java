@@ -63,7 +63,7 @@ class DNSMessage {
         // Set the QR bit to 1 (indicating response), retain Opcode, RD, and set other fields to expected values
         short responseFlags = (short) (0x8000 | (opcode & 0x7800) | (rd & 0x0100) | rcode);
 
-        return new DNSMessage(id, responseFlags, qdcount, ancount, nscount, arcount);
+        return new DNSMessage(id, responseFlags, qdcount, (short) 1, nscount, arcount);
     }
 
     public byte[] createResponseArray() {
