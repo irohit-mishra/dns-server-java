@@ -54,10 +54,17 @@ class DNSMessage {
         short nscount = buffer.getShort();
         short arcount = buffer.getShort();
 
-        // We mimic only the necessary fields in the response
-        // QR = 1 (response), RA = 0, other flags = mimicked
-        short responseFlags = (short) (flags & 0x0110 | 0x8000);
+        // Extract the Opcode from the received flags (bits 1-4)
+        short opcode = (short) (flags & 0x7800); // 0x7800 is the mask for Opcode bits
+        short responseFlags;
 
+        if (opcode != 0) {
+            // If Opcode is not 0, return RCODE 4 (Not Implemented)
+            responseFlags = (short) ((flags & 0x8000) | opcode | 0x0004);
+        } else {
+            // Mimic Opcode, set QR to 1, RA to 0, other flags as received
+            responseFlags = (short) ((flags & 0x0110) | 0x8000);
+        }
         return new DNSMessage(id, responseFlags, qdcount, ancount, nscount, arcount);
     }
 
