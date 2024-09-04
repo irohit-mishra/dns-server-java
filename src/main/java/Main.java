@@ -61,7 +61,6 @@ class DNSMessage {
         short nscount = buffer.getShort();
         short arcount = buffer.getShort();
 
-        // Parse the question section
         ByteArrayOutputStream questionBytes = new ByteArrayOutputStream();
         for (int i = 0; i < qdcount; i++) {
             byte[] questionName = parseDomainName(buffer);
@@ -81,7 +80,6 @@ class DNSMessage {
     public byte[] createResponseArray() {
         ByteBuffer buffer = ByteBuffer.allocate(512);
 
-        // Write header
         buffer.putShort(id);
         buffer.putShort((short) (flags | 0x8000)); // Set response flag
         buffer.putShort(qdcount);
@@ -89,10 +87,6 @@ class DNSMessage {
         buffer.putShort(nscount);
         buffer.putShort(arcount);
 
-        // Write question section
-        buffer.put(questionName);
-
-        // Write answer section
         int offset = 0;
         for (int i = 0; i < qdcount; i++) {
             byte[] name = extractQuestionName(i);
@@ -152,8 +146,7 @@ class DNSMessage {
 
     private byte[] extractQuestionName(int questionIndex) {
         // Logic to extract the question name for each question based on the index
-        // This assumes that questionName is correctly initialized
-        // Implementation depends on the storage format of questionName in your implementation
-        return questionName;  // This would need to be adjusted to correctly slice the name for each question
+        return questionName;
     }
 }
+
