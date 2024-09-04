@@ -1,36 +1,12 @@
-[![progress-banner](https://backend.codecrafters.io/progress/dns-server/d2967850-a579-4541-9f9e-3fc4a3e67b5b)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# DNS Forwarder
 
-This is a starting point for Java solutions to the
-["Build Your Own DNS server" Challenge](https://app.codecrafters.io/courses/dns-server/overview).
+A simple DNS Forwarder implemented in Java. This application listens for DNS queries on a specified port, forwards the queries to an upstream DNS resolver, and returns the resolved IP address back to the client. The server handles DNS queries of type `A` and supports multiple questions per DNS packet by splitting them into individual requests.
 
-In this challenge, you'll build a DNS server that's capable of parsing and
-creating DNS packets, responding to DNS queries, handling various record types
-and doing recursive resolve. Along the way we'll learn about the DNS protocol,
-DNS packet format, root servers, authoritative servers, forwarding servers,
-various record types (A, AAAA, CNAME, etc) and more.
+## Features
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+- **Forwarding DNS Queries**: Forwards incoming DNS queries to a specified DNS resolver and returns the response to the client.
+- **Handles Multiple Queries**: Splits DNS queries containing multiple questions into individual requests and combines the results into a single response.
+- **DNS Response Parsing**: Correctly handles and parses DNS response packets, including DNS name compression.
 
-# Passing the first stage
-
-The entry point for your `your_program.sh` implementation is in
-`src/main/java/Main.java`. Study and uncomment the relevant code, and push your
-changes to pass the first stage:
-
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
-```
-
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `java (21)` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/main/java/Main.java`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+# Note: 
+This Project was made during an Online Challenge ' build your x'
