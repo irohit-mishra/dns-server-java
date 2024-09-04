@@ -6,6 +6,29 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Logs from your program will appear here!");
+
+        try (DatagramSocket serverSocket = new DatagramSocket(2053)) {
+            while (true) {
+                final byte[] buf = new byte[512];
+                final DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                serverSocket.receive(packet);
+                System.out.println("Received data");
+
+                DNSMessage requestMessage = DNSMessage.fromArray(buf);
+                byte[] responseBuffer = requestMessage.createResponseArray();
+
+                DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, packet.getSocketAddress());
+                serverSocket.send(responsePacket);
+            }
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
+        }
+    }
+}
 class DNSMessage {
     private short id;
     private short flags;
