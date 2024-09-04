@@ -3,9 +3,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-
 
 public class Main {
     public static void main(String[] args) {
@@ -29,6 +26,7 @@ public class Main {
         }
     }
 }
+
 class DNSMessage {
     private short id;
     private short flags;
@@ -39,8 +37,6 @@ class DNSMessage {
     private byte[] questionName;
     private short questionType;
     private short questionClass;
-
-    private Map<Integer, byte[]> labelOffsetMap; // to handle compressed labels
 
     public DNSMessage(short id, short flags, short qdcount, short ancount, short nscount, short arcount,
                       byte[] questionName, short questionType, short questionClass) {
@@ -53,7 +49,6 @@ class DNSMessage {
         this.questionName = questionName;
         this.questionType = questionType;
         this.questionClass = questionClass;
-        this.labelOffsetMap = new HashMap<>();
     }
 
     public static DNSMessage fromArray(byte[] data) throws IOException {
@@ -66,7 +61,7 @@ class DNSMessage {
         short nscount = buffer.getShort();
         short arcount = buffer.getShort();
 
-        // Parse each question section (handle uncompressed and compressed)
+        // Parse the question section
         ByteArrayOutputStream questionBytes = new ByteArrayOutputStream();
         for (int i = 0; i < qdcount; i++) {
             byte[] questionName = parseDomainName(buffer);
@@ -79,7 +74,7 @@ class DNSMessage {
             questionBytes.write(ByteBuffer.allocate(2).putShort(questionClass).array());
         }
 
-        return new DNSMessage(id, flags, qdcount, ancount, nscount, arcount,
+        return new DNSMessage(id, flags, qdcount, qdcount, nscount, arcount,
                 questionBytes.toByteArray(), buffer.getShort(), buffer.getShort());
     }
 
@@ -97,14 +92,17 @@ class DNSMessage {
         // Write question section
         buffer.put(questionName);
 
-        // Write answer section (same as question but with answer data)
+        // Write answer section
+        int offset = 0;
         for (int i = 0; i < qdcount; i++) {
-            buffer.put(questionName);   // Name
+            byte[] name = extractQuestionName(i);
+            buffer.put(name);   // Name
             buffer.putShort(questionType); // Type (A)
             buffer.putShort(questionClass); // Class (IN)
             buffer.putInt(60);          // TTL (Time to Live)
             buffer.putShort((short) 4); // RDLENGTH
             buffer.put(new byte[]{8, 8, 8, 8}); // RDATA (IP Address)
+            offset += name.length + 4 + 4 + 2 + 4 + 2 + 4;
         }
 
         return buffer.array();
@@ -150,5 +148,12 @@ class DNSMessage {
         out.write(0); // End with null byte
         buffer.position(originalPosition);
         return out.toByteArray();
+    }
+
+    private byte[] extractQuestionName(int questionIndex) {
+        // Logic to extract the question name for each question based on the index
+        // This assumes that questionName is correctly initialized
+        // Implementation depends on the storage format of questionName in your implementation
+        return questionName;  // This would need to be adjusted to correctly slice the name for each question
     }
 }
