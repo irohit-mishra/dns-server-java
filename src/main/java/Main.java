@@ -1,152 +1,127 @@
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
-
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.StringJoiner;
 public class Main {
-    public static void main(String[] args) {
-        System.out.println("Logs from your program will appear here!");
-
-        try (DatagramSocket serverSocket = new DatagramSocket(2053)) {
-            while (true) {
-                final byte[] buf = new byte[512];
-                final DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                serverSocket.receive(packet);
-                System.out.println("Received data");
-
-                DNSMessage requestMessage = DNSMessage.fromArray(buf);
-                byte[] responseBuffer = requestMessage.createResponseArray();
-
-                DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, packet.getSocketAddress());
-                serverSocket.send(responsePacket);
-            }
-        } catch (IOException e) {
-            System.out.println("IOException: " + e.getMessage());
-        }
+  public static void main(String[] args) {
+    try (DatagramSocket serverSocket = new DatagramSocket(2053)) {
+      while (true) {
+        final byte[] buf = new byte[512];
+        final DatagramPacket packet = new DatagramPacket(buf, buf.length);
+        serverSocket.receive(packet);
+        System.out.println("Received data");
+        // Request
+        DNSMessage requestMessage = new DNSMessage(buf);
+        // Response
+        DNSMessage responseMessage = requestMessage;
+        // Set flags
+        char[] requestFlags =
+            String.format("%16s", Integer.toBinaryString(responseMessage.flags))
+                .replace(' ', '0')
+                .toCharArray();
+        requestFlags[0] = '1';  // QR
+        requestFlags[13] = '1'; // RCODE
+        responseMessage.flags =
+            (short)Integer.parseInt(new String(requestFlags), 2);
+        byte[] responseBuffer = responseMessage.array();
+        DatagramPacket responsePacket = new DatagramPacket(
+            responseBuffer, responseBuffer.length, packet.getSocketAddress());
+        serverSocket.send(responsePacket);
+      }
+    } catch (IOException e) {
+      System.out.println("IOException: " + e.getMessage());
     }
+  }
 }
-
 class DNSMessage {
-    private short id;
-    private short flags;
-    private short qdcount;
-    private short ancount;
-    private short nscount;
-    private short arcount;
-    private byte[] questionName;
-    private short questionType;
-    private short questionClass;
-
-    public DNSMessage(short id, short flags, short qdcount, short ancount, short nscount, short arcount,
-                      byte[] questionName, short questionType, short questionClass) {
-        this.id = id;
-        this.flags = flags;
-        this.qdcount = qdcount;
-        this.ancount = ancount;
-        this.nscount = nscount;
-        this.arcount = arcount;
-        this.questionName = questionName;
-        this.questionType = questionType;
-        this.questionClass = questionClass;
+  public short id = 1234;
+  public short flags;
+  // public short qdcount;
+  // public short ancount;
+  public short nscount;
+  public short arcount;
+  public Map<String, byte[]> map = new HashMap<>();
+  public DNSMessage(byte[] array) {
+    ByteBuffer buffer = ByteBuffer.wrap(array);
+    // Parse header section
+    id = buffer.getShort();
+    flags = buffer.getShort();
+    int qdcount = buffer.getShort();
+    buffer.getShort(); // ancount
+    nscount = buffer.getShort();
+    arcount = buffer.getShort();
+    // Parse question section
+    for (int i = 0; i < qdcount; i++) {
+      map.put(decodeDomainName(buffer), new byte[] {8, 8, 8, 8});
+      buffer.getShort(); // Type
+      buffer.getShort(); // Class
     }
-
-    public static DNSMessage fromArray(byte[] data) throws IOException {
-        ByteBuffer buffer = ByteBuffer.wrap(data);
-
-        short id = buffer.getShort();
-        short flags = buffer.getShort();
-        short qdcount = buffer.getShort();
-        short ancount = buffer.getShort();
-        short nscount = buffer.getShort();
-        short arcount = buffer.getShort();
-
-        ByteArrayOutputStream questionBytes = new ByteArrayOutputStream();
-        for (int i = 0; i < qdcount; i++) {
-            byte[] questionName = parseDomainName(buffer);
-            questionBytes.write(questionName);
-
-            short questionType = buffer.getShort();
-            questionBytes.write(ByteBuffer.allocate(2).putShort(questionType).array());
-
-            short questionClass = buffer.getShort();
-            questionBytes.write(ByteBuffer.allocate(2).putShort(questionClass).array());
-        }
-
-        return new DNSMessage(id, flags, qdcount, qdcount, nscount, arcount,
-                questionBytes.toByteArray(), buffer.getShort(), buffer.getShort());
+  }
+  public byte[] array() {
+    ByteBuffer buffer = ByteBuffer.allocate(512);
+    // Write header
+    buffer.putShort(id);
+    buffer.putShort(flags);
+    buffer.putShort((short)map.size());
+    buffer.putShort((short)map.size());
+    buffer.putShort(nscount);
+    buffer.putShort(arcount);
+    // Write question section
+    for (String domain : map.keySet()) {
+      buffer.put(encodeDomainName(domain));
+      buffer.putShort((short)1); // Type = A
+      buffer.putShort((short)1); // Class = IN
     }
-
-    public byte[] createResponseArray() {
-        ByteBuffer buffer = ByteBuffer.allocate(512);
-
-        buffer.putShort(id);
-        buffer.putShort((short) (flags | 0x8000)); // Set response flag
-        buffer.putShort(qdcount);
-        buffer.putShort(qdcount); // Set ANCOUNT equal to QDCOUNT
-        buffer.putShort(nscount);
-        buffer.putShort(arcount);
-
-        int offset = 0;
-        for (int i = 0; i < qdcount; i++) {
-            byte[] name = extractQuestionName(i);
-            buffer.put(name);   // Name
-            buffer.putShort(questionType); // Type (A)
-            buffer.putShort(questionClass); // Class (IN)
-            buffer.putInt(60);          // TTL (Time to Live)
-            buffer.putShort((short) 4); // RDLENGTH
-            buffer.put(new byte[]{8, 8, 8, 8}); // RDATA (IP Address)
-            offset += name.length + 4 + 4 + 2 + 4 + 2 + 4;
-        }
-
-        return buffer.array();
+    // Write answer section
+    for (String domain : map.keySet()) {
+      buffer.put(encodeDomainName(domain));
+      buffer.putShort((short)1);   // Type = A
+      buffer.putShort((short)1);   // Class = IN
+      buffer.putInt(60);           // TTL
+      buffer.putShort((short)4);   // Length
+      buffer.put(map.get(domain)); // Data
     }
-
-    private static byte[] parseDomainName(ByteBuffer buffer) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        while (true) {
-            byte len = buffer.get();
-            if ((len & 0xC0) == 0xC0) { // Handle compression
-                int offset = ((len & 0x3F) << 8) | (buffer.get() & 0xFF);
-                byte[] name = parseCompressedDomainName(buffer, offset);
-                out.write(name);
-                break;
-            } else if (len == 0) {
-                break;
-            } else {
-                byte[] label = new byte[len];
-                buffer.get(label);
-                out.write(len);
-                out.write(label);
-            }
-        }
-        out.write(0); // End with null byte
-        return out.toByteArray();
+    return buffer.array();
+  }
+  private byte[] encodeDomainName(String domain) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    for (String label : domain.split("\\.")) {
+      out.write(label.length());
+      out.writeBytes(label.getBytes());
     }
-
-    private static byte[] parseCompressedDomainName(ByteBuffer buffer, int offset) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        int originalPosition = buffer.position();
+    out.write(0); // Terminating null byte
+    return out.toByteArray();
+  }
+  private String decodeDomainName(ByteBuffer buffer) {
+    byte labelLength;
+    StringJoiner labels = new StringJoiner(".");
+    boolean compressed = false;
+    int position = 0;
+    while ((labelLength = buffer.get()) != 0) {
+      if ((labelLength & 0xC0) == 0xC0) {
+        compressed = true;
+        // It's a pointer. Create a new ByteBuffer from the current one to
+        // handle jumps
+        int offset = ((labelLength & 0x3F) << 8) | (buffer.get() & 0xFF);
+        // Implement jumping logic
+        position = buffer.position();
         buffer.position(offset);
-
-        while (true) {
-            byte len = buffer.get();
-            if (len == 0) {
-                break;
-            }
-            byte[] label = new byte[len];
-            buffer.get(label);
-            out.write(len);
-            out.write(label);
-        }
-        out.write(0); // End with null byte
-        buffer.position(originalPosition);
-        return out.toByteArray();
+      } else {
+        byte[] label = new byte[labelLength];
+        buffer.get(label);
+        labels.add(new String(label));
+      }
     }
-
-    private byte[] extractQuestionName(int questionIndex) {
-        // Logic to extract the question name for each question based on the index
-        return questionName;
+    if (compressed) {
+      buffer.position(position);
     }
+    return labels.toString();
+  }
 }
-
